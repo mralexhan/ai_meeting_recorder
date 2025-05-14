@@ -1,0 +1,209 @@
+*{
+    padding: 0;
+    margin: 0;
+    font-family: "Inter";
+    font-size: 1vw;
+    font-weight: 400;
+}
+
+body{
+    padding: 3vw;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+}
+
+form{
+    display:flex;
+    flex-direction: column;
+    gap: 2vh;
+}
+
+#password{
+    width: 20vw;
+    padding: 5px 20px 5px 5px;
+    font-size: 1em;
+}
+
+#submitPassword{
+    width: 10vw;
+    height: 4vh;
+    font-size: 1em;
+    border-radius: 10px;
+    border-style: solid;
+    background-color: white;
+    color: black;
+    border-width: 1px;
+    transition-duration: 0.2s;
+}
+
+#submitPassword:hover{
+    cursor: pointer;
+    background-color: rgb(235, 235, 235);
+}
+
+.button{
+    border-style: none;
+    background-color: white;
+    font-weight: 550;
+    font-size: 1.2em;
+    border-style: solid;
+    border-width: 2px;
+    display: flex;
+    flex-direction: row;
+    width: 10vw;
+    height: 5vh;
+    justify-content: space-around;
+    align-items: center;
+    border-radius: 10px;
+    transition-duration: 0.2s;
+}
+
+.button:hover{
+    background-color: rgb(235, 235, 235);
+    cursor: pointer;
+}
+
+#recordBtn{
+    background-color: black;
+    color: white;
+}
+
+#recordBtn:hover{
+    cursor: pointer;
+    background-color: rgb(62, 62, 62);
+}
+
+.arrow, .record, .stop{
+    font-size: 1.5em;
+}
+
+.record, .stop{
+    color: red;
+}
+
+.stop{
+    padding-bottom: 2px;
+}
+
+h1{
+    font-size: 2em;
+    font-weight: 550;
+}
+
+h2{
+    font-size: 1.5em;
+    font-weight: 550;
+    margin-top: 3vh;
+    margin-bottom: 1vh;
+}
+
+li{
+    margin-left: 3vw;
+}
+
+ul ul {
+    margin-left: 4vw;
+}
+
+#extractedInfo{
+    width: 60vw;
+}
+
+#loginForm, #soundThings{
+    margin-left: 10vw;
+    height: 80vh;
+    width: 30vw;
+    display:flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5vh;
+    box-shadow: 0 2px 5px rgb(0,0,0,0.25);
+}
+
+#loginForm{
+    margin: auto;
+}
+
+
+
+
+
+
+
+/*wave animation css*/
+@keyframes quiet {
+    25%{
+      transform: scaleY(.6);
+    }
+    50%{
+      transform: scaleY(.4);
+    }
+    75%{
+      transform: scaleY(.8);
+    }
+}
+  
+@keyframes normal {
+    25%{
+        transform: scaleY(1);
+    }
+    50%{
+        transform: scaleY(.4);
+    }
+    75%{
+        transform: scaleY(.6);
+    }
+}
+@keyframes loud {
+    25%{
+        transform: scaleY(1);
+    }
+    50%{
+        transform: scaleY(.4);
+    }
+    75%{
+        transform: scaleY(1.2);
+    }
+}
+
+.soundWaves{
+    display: flex;
+    justify-content: space-between;
+    height: 64px;
+    --boxSize: 8px;
+    --gutter: 4px;
+    width: calc((var(--boxSize) + var(--gutter)) * 5);
+}
+  
+.box{
+    transform: scaleY(.4);
+    height: 100%;
+    width: var(--boxSize);
+    background: #43B02A;
+    animation-duration: 1.2s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: 0;
+    border-radius: 8px;
+}
+  
+.box1{
+    animation-name: quiet;
+}
+  
+.box2{
+    animation-name: normal;
+}
+
+.box3{
+    animation-name: quiet;
+}
+  
+.box4{
+    animation-name: loud;
+}
+  
+.box5{
+    animation-name: quiet;
+}
