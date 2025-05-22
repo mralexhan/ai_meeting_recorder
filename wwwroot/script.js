@@ -50,12 +50,7 @@ async function handleAPI(prompt, pass) {
 }
 
 //handles sending the audio file to the backend to be processed
-async function uploadAudio() {
-  const fileInput = document.getElementById('audioFile');
-  const file = fileInput.files[0];
-  const formData = new FormData();
-  formData.append('audio', file);
-
+async function uploadAudio(formData) {
   document.getElementById("status").innerHTML = "Processing Upload...";
   const response = await fetch('/upload', {
       method: 'POST',
@@ -79,7 +74,7 @@ function createSummary(purpose, key_points, action_items){
   let purposeWords = document.createElement("p");
   purposeWords.innerHTML = purpose;
   let pointHead = document.createElement("h2");
-  pointHead.innerHTML = "Key Points;"
+  pointHead.innerHTML = "Key Points: "
   let bigList = document.createElement("ul");
   for(let i = 0; i < key_points.length; i++){
     let pointTitle = document.createElement("li");
@@ -124,62 +119,41 @@ document.getElementById("audioFile").addEventListener("change", function(){
     box.style.animationIterationCount = "infinite";
   });
 
-  uploadAudio().then(transcription =>{
+  const fileInput = document.getElementById('audioFile');
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('audio', file);
+
+  uploadAudio(formData).then(transcription =>{
     handleAPI(transcription, password).then(result =>{
       let responseJSON = JSON.parse(result);
       createSummary(responseJSON.purpose, responseJSON.key_points, responseJSON.action_items);
     });
-  })
+  });
 });
 
+async function startRecord() {
+  const response = await fetch('/record/start', {
+      method: 'POST'
+  });
+  const data = await response.json();
+  console.log(data.message);
+}
 
-//deals with the recording part
-const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition || window.mozSpeechRecognition || window.msSpeechRecognition)();
-//determines recognition language based on dropdown selection
-var selector = document.getElementById("languageDrop");
-var selectedLang = selector.value;
-recognition.lang = "en-US";
-recognition.continuous = true;
-var transStore = [];
+async function stopRecord() {
+  const response = await fetch('/record/stop', {
+      method: 'POST'
+  });
+  const blob = await response.blob();
+  const file = new File([blob], "audiofile.wav", { type: blob.type});
+  const formData = new FormData();
+  formData.append('audio', file);
 
-selector.addEventListener("change", function(){
-  var selectedLang = this.value;
-  console.log(selectedLang);
-  if (selectedLang == "English"){
-    recognition.lang = "en-US";
-    taskInput.placeholder = "Hello, what would you like to talk about today?"
-  }
-  if (selectedLang == "Chinese"){
-    recognition.lang = "zh-TW"; 
-    taskInput.placeholder = "你好，你今天想聊些什麼？"
-  }
-  if (selectedLang == "Japanese"){
-    recognition.lang = "ja";
-    taskInput.placeholder = "こんにちは、今日は何を話したいですか？"
-  }
-  if (selectedLang == "German"){
-    recognition.lang = "de";
-    taskInput.placeholder = "Hallo, worüber möchtest du heute sprechen?"
-  }
-  if (selectedLang == "French"){
-    recognition.lang = "fr";
-    taskInput.placeholder = "Bonjour, de quoi veux-tu parler aujourd'hui ?"
-  }
-  if (selectedLang == "Italian"){
-    recognition.lang = "it";
-    taskInput.placeholder = "Ciao, di cosa vuoi parlare oggi?"
-  }
-  if (selectedLang == "Spanish"){
-    recognition.lang = "es";
-    taskInput.placeholder = "Hola, ¿de qué te gustaría hablar hoy?"
-  }
-});
+  console.log("Recording Ended");
+  
+  return formData;
+}
 
-//stores every part of the recording into the transcript storage
-recognition.onresult = (event) => {
-    const transcript = event.results[event.resultIndex][0].transcript;
-    transStore.push(transcript);
-};
 
 //handles what happens when you click the record button
 document.getElementById("recordBtn").addEventListener("click", ()=>{
@@ -189,7 +163,7 @@ document.getElementById("recordBtn").addEventListener("click", ()=>{
   document.getElementById("recordBtn").style.display = "none";
   document.getElementById("stopRecord").style.display = "flex";
 
-  recognition.start();
+  startRecord();
   document.getElementById("status").innerHTML = "Recording...";
 });
 
@@ -201,17 +175,12 @@ document.getElementById("stopRecord").addEventListener("click", ()=>{
   document.getElementById("stopRecord").style.display = "none";
   document.getElementById("recordBtn").style.display = "flex";
 
-  recognition.stop();
-
-  let transcript = "";
-  for(let i = 0; i < transStore.length; i++){
-    transcript += transStore[i];
-  }
-
-  document.getElementById("status").innerHTML = "Generating Response from AI...";
-
-  handleAPI(transcript, password).then(result =>{
-    let responseJSON = JSON.parse(result);
-    createSummary(responseJSON.purpose, responseJSON.key_points, responseJSON.action_items);
+  stopRecord().then(audio =>{
+    uploadAudio(audio).then(transcription =>{
+    handleAPI(transcription, password).then(result =>{
+      let responseJSON = JSON.parse(result);
+      createSummary(responseJSON.purpose, responseJSON.key_points, responseJSON.action_items);
+    });
+  });
   })
 });

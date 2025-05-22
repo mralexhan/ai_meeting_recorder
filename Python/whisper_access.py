@@ -14,7 +14,6 @@ if len(sys.argv) < 2:
 audio_path = sys.argv[1]
 
 # Load the Whisper model
-# print("Initializing model")
 model = whisper.load_model("tiny") #edit this for speed / size in order: tiny, base, small, medium, turbo, large
 
 start_time = time.time()
