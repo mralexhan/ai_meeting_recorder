@@ -13,18 +13,34 @@
   </head>
 
   <body>
+
+    <form id="loginForm">
+        <h2>AI Services</h2>
+        <input type="password" id="password" name="password" placeholder="Please input the password">
+        <button type="submit" id="submitPassword">Authenticate</button>
+    </form>
+
+    <div id="chooseService" style="display: none;">
+      <div class="serviceMenu">
+        <p style="font-size: 5vw;">&#128196</p>
+        <h2>PDF Tagging</h2>
+        <button class="button" id="enterPDF">Enter</button>
+      </div>
+      <div class="serviceMenu">
+        <p style="font-size: 5vw;">&#127897</p>
+        <h2>Meeting Recorder</h2>
+        <button class="button" id="enterRecorder">Enter</button>
+      </div>
+    </div>
     
-    <div id="extractedInfo" style="display: none;">
+    <div id="meetingRecorder" style="display: none;">
+      <div id="extractedInfo">
       <h1>Meeting Recorder</h1>
       <br>
       <p id="status">Click the upload button to get started</p>
     </div>
-    <form id="loginForm">
-        <h2>AI Meeting Recorder</h2>
-        <input type="password" id="password" name="password" placeholder="Please input the password">
-        <button type="submit" id="submitPassword">Authenticate</button>
-    </form>
-    <div id="soundThings" style="display: none;">
+
+    <div id="soundThings">
       <div class="soundWaves">
         <div class="box box1"></div>
         <div class="box box2"></div>
@@ -33,10 +49,6 @@
         <div class="box box5"></div>
         <div class="box box6"></div>
       </div>
-      <!-- <div id="musicTimer">
-        <div id="slider"><div id="elapsed"></div></div>
-        <p id="timer"></p>
-      </div> -->
 
       <p id="fileName"></p>
       <label class="button" for="audioFile">Upload<p class="arrow">&#129093</p></label>
@@ -44,8 +56,38 @@
       <button id="recordBtn" class="button">Record<p class="record">&#9673</p></button>
       <button id="stopRecord" class="button" style="display: none;">Stop Record<p class="stop">&#9724</p></button>
     </div>
+    </div>
 
+    <div id="tagger" style="display: none;">
+        <div id="leftSide">
+            <h1>AI PDF Tagging & Summary</h1>
+            <label id="uploadTitle" for="formatfile">Choose File to Upload</label>
+    
+            <div id="extractBlock">
+                <p id="name"></p>
+                <p id="date"></p>
+                <p id="keywords"></p>
+                <p id="summary"></p>
+            </div>
+            
+            <input id="formatfile" type="file" name="file" style="display: none;" multiple/>
+            <button id="uploadBtn" style="display: none;">Upload</button>
+            <button id="downloadCSV">Download as CSV</button>
+            
+            
+        </div>
+        <div id="rightSide">
+            <div id="pdfContainer">
+                <!-- The extracted text will be displayed here -->
+            </div>
+            <div id="pdfButtons">
+                <button id="prevPDF">Previous PDF</button>
+                <button id="nextPDF">Next PDF</button>
+            </div>
+        </div>
+    </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <script type="module" src="script.js"></script>
   </body>
 </html>

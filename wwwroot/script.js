@@ -6,29 +6,21 @@ if (window.location.hostname !== "localhost") {
   baseURL = "https://openaitag-eda7ath0c2dheyfg.japaneast-01.azurewebsites.net";  // Replace with your actual Azure app URL
 }
 
-//handles the login form
-document.getElementById("loginForm").addEventListener("submit", (e)=>{
-  e.preventDefault();
-  let pass = document.getElementById("password").value;
-  handleAPI("", pass);
-});
-
 //handles the API (both login and openai)
-async function handleAPI(prompt, pass) {
+async function handleAPI(prompt, pass, service) {
   const response = await fetch(`${baseURL}/openai/complete`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ prompt, pass }),
+    body: JSON.stringify({ prompt, pass, service }),
   });
 
   const data = await response.json();
 
   if (data.success && prompt == ""){
     password = pass;
-    document.getElementById("soundThings").style.display = "flex";
-    document.getElementById("extractedInfo").style.display = "initial";
+    document.getElementById("chooseService").style.display = "flex";
     document.getElementById("loginForm").style.display = "none";
     return null;
   }
@@ -49,22 +41,235 @@ async function handleAPI(prompt, pass) {
 
 }
 
-//handles sending the audio file to the backend to be processed
-async function uploadAudio(formData) {
-  document.getElementById("status").innerHTML = "Processing Upload...";
-  const response = await fetch('/upload', {
-      method: 'POST',
-      body: formData
-  });
+//handles the login form
+document.getElementById("loginForm").addEventListener("submit", (e)=>{
+  e.preventDefault();
+  let pass = document.getElementById("password").value;
+  handleAPI("", pass, "");
+});
 
-  const data = await response.json();
-  document.getElementById("status").innerHTML = "Audio Processing Complete; Retrieving Information...";
-  console.log(data.transcription.replace(/\uFFFD/g, ''));
-  return data.transcription.replace(/\uFFFD/g, '');
+//code for the document tagging
+document.getElementById("enterPDF").addEventListener("click", ()=>{
+  document.getElementById("tagger").style.display = "flex";
+  document.getElementById("chooseService").style.display = "none";
+});
+
+//pdf display
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+
+const fileInput = document.getElementById('formatfile');
+const pdfContainer = document.getElementById('pdfContainer');
+
+let extractedText = ""; //saves text extracted from pdf
+let currentRender = 0; //saves which pdf is currently being rendered on screen
+let indPDF = []; //saves individual pdfs into an array
+
+let screenUploadBtn = document.getElementById("uploadTitle");
+let actualUploadBtn = document.getElementById("uploadBtn");
+
+// Handle the file input change event
+fileInput.addEventListener('change', async (event) => {
+  indPDF = []; //resets the individual pdfs every time the user selects new files
+  const selectedFiles = event.target.files;
+  screenUploadBtn.innerHTML = "Loading<div id='loader'></div>";
+
+  for (let i = 0; i < selectedFiles.length; i++) {
+    const file = selectedFiles[i];
+    indPDF.push({}); //saves each individual pdf as an object into an array
+    indPDF[i].filename = file.name.substring(0, file.name.length - 4); //gets the name of the file without the .pdf extension
+
+    // Wrap FileReader in a Promise
+    const pdfData = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        resolve(new Uint8Array(e.target.result));
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+
+    const pdf = await pdfjsLib.getDocument(pdfData).promise; // Use PDF.js to render the PDF
+    
+    indPDF[i].pdf = pdf;
+
+    //does the text extract stuff
+    extractedText += `\n File Name: ${indPDF[i].filename} \n`;
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum); // Wait for the page to be fetched
+
+      // Extract and display text content from the page
+      const textContent = await page.getTextContent();
+      let text = '';
+      textContent.items.forEach(function (item) {
+        text += item.str + ' ';
+      });
+
+      extractedText += text;
+    }
+  }
+
+  //sends extracted pdf text to OpenAI API and deals with the consequences
+  handleAPI(extractedText, password, "tag").then(response =>{
+    let responseJSON = JSON.parse(response); //parses the JSON returned by openai API
+    //saves the tags, summaries, and dates into the individual file objects
+    for(let i = 0; i < responseJSON.files.length; i++){
+      console.log(responseJSON);
+      indPDF[i].tags = responseJSON.files[i].tags;
+      indPDF[i].summary = responseJSON.files[i].summary;
+      const time = new Date();
+      const month = String(time.getMonth() + 1).padStart(2, '0'); // pads a zero in the front of the month
+      const day = String(time.getDate()).padStart(2, '0');
+      const year = time.getFullYear();
+
+      indPDF[i].date = `${month}-${day}-${year}`;
+      document.getElementById("downloadCSV").style.display = "initial";
+      if(indPDF.length > 1){
+        document.getElementById("nextPDF").style.opacity = "1";
+        document.getElementById("nextPDF").style.pointerEvents = "auto";
+      }
+    };
+
+    createPDFSummary(indPDF[0].filename, indPDF[0].tags, indPDF[0].date, indPDF[0].summary);
+    renderPDF(indPDF[0].pdf);
+    
+    screenUploadBtn.innerHTML = "Choose File to Upload";
+    extractedText = ""; //resets the extractedText
+
+  });
+});
+
+document.getElementById("prevPDF").addEventListener("click", ()=>{
+  if(currentRender-1 >= 0){
+    currentRender -= 1;
+    renderPDF(indPDF[currentRender].pdf);
+    createPDFSummary(indPDF[currentRender].filename, indPDF[currentRender].tags, indPDF[currentRender].date, indPDF[currentRender].summary);
+    document.getElementById("nextPDF").style.opacity = "1";
+    document.getElementById("nextPDF").style.pointerEvents = "auto";
+    if(currentRender == 0){
+      document.getElementById("prevPDF").style.opacity = "0";
+      document.getElementById("prevPDF").style.pointerEvents = "none";
+    }
+  }
+
+});
+
+document.getElementById("nextPDF").addEventListener("click", ()=>{
+  if(currentRender+1 < indPDF.length){
+    currentRender += 1;
+    renderPDF(indPDF[currentRender].pdf);
+    createPDFSummary(indPDF[currentRender].filename, indPDF[currentRender].tags, indPDF[currentRender].date, indPDF[currentRender].summary);
+    document.getElementById("prevPDF").style.opacity = "1";
+    document.getElementById("prevPDF").style.pointerEvents = "auto";
+    if(currentRender == indPDF.length-1){
+      document.getElementById("nextPDF").style.opacity = "0";
+      document.getElementById("nextPDF").style.pointerEvents = "none";
+    }
+  }
+});
+
+//deals with download csv button
+document.getElementById("downloadCSV").addEventListener("click", ()=>{
+  let data = [];
+  data.push(["File Name", "Tags", "Summary", "Creation Date"]);
+
+  for(let i = 0; i < indPDF.length; i++){
+    data.push([escapeCSVField(indPDF[i].filename), escapeCSVField(indPDF[i].tags), escapeCSVField(indPDF[i].summary), escapeCSVField(indPDF[i].date)]);
+  }
+
+  const csvContent = data.map(row => row.join(",")).join("\n");
+
+  // Create a Blob from the CSV string
+  const blob = new Blob([csvContent], { type: "text/csv" });
+
+  // Create a temporary link to download the Blob
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "data.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url); // Free up memory
+
+});
+
+//deals with handling quotes, commas, and line breaks in the data when converting to csv
+function escapeCSVField(field) {
+  if (field == null) {
+    return '';
+  }
+  //converts data to string
+  let str;
+  if (Array.isArray(field)){
+    str = field.join(",");
+  }
+  else{
+    str = field.toString();
+  }
+  // checks if the data includes commas, quotes, or line breaks
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
 }
 
-//creates the AI generated summaries on the screen
-function createSummary(purpose, key_points, action_items){
+//function to render a pdf on screen
+async function renderPDF(pdf){
+  pdfContainer.innerHTML = ""; //clears previous contents
+  // Loop through each page and render it
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum); // Wait for the page to be fetched
+
+    const scale = window.innerWidth / 1500; // Adjust scale for better visibility
+    const viewport = page.getViewport({ scale: scale });
+
+    // Create a canvas element to render the page
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    
+    pdfContainer.appendChild(canvas); // Append the canvas to the container
+
+    const context = canvas.getContext('2d'); // Get the rendering context
+
+    // Render the page on the canvas
+    await page.render({
+      canvasContext: context,
+      viewport: viewport
+    });
+  }
+}
+
+function createPDFSummary(filename, tags, date, summary){
+  let wordList = "";
+  for(let i = 0; i < tags.length; i++){
+    if(i != 0){
+      wordList += ", " + tags[i];
+    }
+    else{
+      wordList += tags[i];
+    }
+  }
+
+  document.getElementById("name").innerHTML = "<b>File name: </b>" + filename;
+  document.getElementById("date").innerHTML = "<b>Upload Date: </b>" + date;
+  document.getElementById("keywords").innerHTML = "<b>Keywords: </b>" + wordList;
+  document.getElementById("summary").innerHTML = "<b>Summary: </b>" + summary;
+}
+
+
+
+
+
+
+//code for the meeting recorder
+document.getElementById("enterRecorder").addEventListener("click", ()=>{
+  document.getElementById("meetingRecorder").style.display = "flex";
+  document.getElementById("chooseService").style.display = "none";
+});
+
+//creates the AI generated summaries on the screen for the meeting recorder
+function createRecordSummary(purpose, key_points, action_items){
   let bigHead = document.createElement("h1");
   bigHead.innerHTML = "Meeting Recorder";
   let breakLine = document.createElement("br");
@@ -112,7 +317,6 @@ function createSummary(purpose, key_points, action_items){
   });
 }
 
-
 //handles what happens when you upload an audio file
 document.getElementById("audioFile").addEventListener("change", function(){
   document.querySelectorAll(".box").forEach((box) =>{
@@ -125,9 +329,9 @@ document.getElementById("audioFile").addEventListener("change", function(){
   formData.append('audio', file);
 
   uploadAudio(formData).then(transcription =>{
-    handleAPI(transcription, password).then(result =>{
+    handleAPI(transcription, password, "record").then(result =>{
       let responseJSON = JSON.parse(result);
-      createSummary(responseJSON.purpose, responseJSON.key_points, responseJSON.action_items);
+      createRecordSummary(responseJSON.purpose, responseJSON.key_points, responseJSON.action_items);
     });
   });
 });
@@ -154,7 +358,6 @@ async function stopRecord() {
   return formData;
 }
 
-
 //handles what happens when you click the record button
 document.getElementById("recordBtn").addEventListener("click", ()=>{
   document.querySelectorAll(".box").forEach((box) =>{
@@ -177,10 +380,24 @@ document.getElementById("stopRecord").addEventListener("click", ()=>{
 
   stopRecord().then(audio =>{
     uploadAudio(audio).then(transcription =>{
-    handleAPI(transcription, password).then(result =>{
+    handleAPI(transcription, password, "record").then(result =>{
       let responseJSON = JSON.parse(result);
-      createSummary(responseJSON.purpose, responseJSON.key_points, responseJSON.action_items);
+      createRecordSummary(responseJSON.purpose, responseJSON.key_points, responseJSON.action_items);
     });
   });
   })
 });
+
+//handles sending the audio file to the backend to be processed
+async function uploadAudio(formData) {
+  document.getElementById("status").innerHTML = "Processing Upload...";
+  const response = await fetch('/upload', {
+      method: 'POST',
+      body: formData
+  });
+
+  const data = await response.json();
+  document.getElementById("status").innerHTML = "Audio Processing Complete; Retrieving Information...";
+  console.log(data.transcription.replace(/\uFFFD/g, ''));
+  return data.transcription.replace(/\uFFFD/g, '');
+}
